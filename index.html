@@ -1,0 +1,358 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Bahasa Kita Menjadi Bahasa Mesin | Tugas Individu - Robin</title>
+<!--
+  JUDUL UNTUK UTS: ganti teks di bawah ini saja kalau Ibu Aliyah menentukan judul lain.
+  JUDUL_APLIKASI = "Bahasa Kita Menjadi Bahasa Mesin"
+  Cara kerja: tulis bahasa kita di Input, susun operasi di Recipe (klik operasi
+  untuk menambah, panah untuk menaik-turunkan, x untuk menghapus), hasil langsung
+  keluar di Output. Semua proses berjalan di browser, tanpa server.
+-->
+<style>
+  /* Mesin bengkel, bukan landing page: panel gelap, garis tegas, sudut kotak,
+     satu aksen amber, huruf monospace. Tanpa gradasi, tanpa bayangan lembut. */
+  *{box-sizing:border-box;margin:0;padding:0}
+  :root{
+    --bg:#0f110f; --panel:#171a17; --panel2:#1e221e; --garis:#3a403a;
+    --teks:#e8e6da; --redup:#9aa093; --amber:#f0a500; --hijau:#7fd08a; --merah:#e05d44;
+  }
+  body{background:var(--bg);color:var(--teks);
+    font-family:"Courier New",Courier,Consolas,monospace;font-size:14px;line-height:1.5}
+  a{color:var(--amber)}
+
+  header{border-bottom:3px solid var(--amber);padding:14px 18px;display:flex;
+    justify-content:space-between;gap:14px;flex-wrap:wrap;align-items:flex-end}
+  header .plat{border:1px solid var(--garis);padding:8px 12px;background:var(--panel)}
+  header h1{font-size:20px;letter-spacing:1px;text-transform:uppercase}
+  header h1 span{color:var(--amber)}
+  header p{color:var(--redup);font-size:12px;margin-top:4px}
+  header .identitas{text-align:right;font-size:12px;color:var(--redup)}
+  header .identitas b{color:var(--teks)}
+
+  .rangka{max-width:1240px;margin:0 auto;padding:16px;display:grid;
+    grid-template-columns:230px 1fr;gap:16px;align-items:start}
+  @media(max-width:900px){.rangka{grid-template-columns:1fr}}
+
+  .panel{background:var(--panel);border:1px solid var(--garis);padding:0}
+  .panel h2{font-size:12px;letter-spacing:2px;text-transform:uppercase;
+    border-bottom:1px solid var(--garis);padding:10px 12px;color:var(--amber)}
+  .panel h2 .nomor{display:inline-block;background:var(--amber);color:#111;
+    padding:0 7px;margin-right:8px;font-weight:700}
+  .isi{padding:12px}
+
+  /* Operasi */
+  .op{display:block;width:100%;text-align:left;background:var(--panel2);
+    border:1px solid var(--garis);color:var(--teks);font:inherit;font-size:13px;
+    padding:9px 10px;margin-bottom:8px;cursor:pointer}
+  .op:hover{border-color:var(--amber)}
+  .op:active{transform:translateY(1px)}
+  .op small{display:block;color:var(--redup);font-size:11px}
+  .op.kelompok{font-size:11px;letter-spacing:1px;text-transform:uppercase;
+    color:var(--redup);background:none;border:none;padding:10px 2px 4px;cursor:default}
+  .op.kelompok:first-child{padding-top:0}
+
+  textarea{width:100%;background:#0c0e0c;color:var(--teks);border:1px solid var(--garis);
+    font:inherit;font-size:14px;padding:12px;resize:vertical;min-height:110px}
+  textarea:focus{outline:2px solid var(--amber);outline-offset:0}
+  #output{min-height:110px;color:var(--hijau)}
+  #output.error{color:var(--merah)}
+  .baris-tombol{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+  button.tombol{background:var(--amber);color:#111;border:1px solid var(--amber);
+    font:inherit;font-weight:700;font-size:13px;padding:8px 14px;cursor:pointer}
+  button.tombol.gelap{background:var(--panel2);color:var(--teks);border-color:var(--garis)}
+  button.tombol:hover{filter:brightness(1.1)}
+  .stat{font-size:12px;color:var(--redup);margin-top:8px}
+  .stat b{color:var(--teks)}
+
+  /* Recipe */
+  #recipe{border:1px dashed var(--garis);padding:10px;min-height:64px}
+  #recipe.kosong{color:var(--redup);font-size:13px}
+  .langkah{display:flex;align-items:center;gap:8px;background:var(--panel2);
+    border:1px solid var(--garis);padding:8px 10px;margin-bottom:8px}
+  .langkah:last-child{margin-bottom:0}
+  .langkah .no{background:var(--amber);color:#111;font-weight:700;padding:0 7px}
+  .langkah .nama{flex:1}
+  .langkah button{background:none;border:1px solid var(--garis);color:var(--teks);
+    font:inherit;font-size:13px;padding:2px 8px;cursor:pointer}
+  .langkah button:hover{border-color:var(--amber)}
+  .panah{color:var(--amber);font-weight:700;padding:0 2px}
+
+  /* Tabel ASCII */
+  table{width:100%;border-collapse:collapse;font-size:13px}
+  th{text-align:left;color:var(--amber);letter-spacing:1px;font-size:11px;
+    text-transform:uppercase;border-bottom:2px solid var(--garis);padding:8px 6px}
+  td{border-bottom:1px solid #262b26;padding:7px 6px;vertical-align:top}
+  td.karakter{font-size:16px}
+  td.luar{color:var(--merah)}
+  .catatan{font-size:12px;color:var(--redup);margin-top:10px}
+  .penjelasan{font-size:13px;color:var(--redup);line-height:1.65}
+  .penjelasan b{color:var(--teks)}
+  footer{text-align:center;color:var(--redup);font-size:12px;padding:18px;border-top:1px solid var(--garis)}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="plat">
+    <h1>Mesin Bahasa <span>//</span> Bahasa Kita Menjadi Bahasa Mesin</h1>
+    <p>Model CyberChef mini: tulis teks, susun operasi, baca hasil mesinnya. Karya mandiri, tanpa server.</p>
+  </div>
+  <div class="identitas">
+    <b>Ahmad Muqarrobin (Robin)</b><br>NIM 242502040003 - Kelas 3TI01<br>Tugas Individu - Sistem Multimedia
+  </div>
+</header>
+
+<div class="rangka">
+  <!-- KOLOM OPERASI -->
+  <aside class="panel">
+    <h2>Operasi</h2>
+    <div class="isi" id="daftar-op"></div>
+  </aside>
+
+  <!-- KOLOM KERJA -->
+  <main style="display:grid;gap:16px">
+    <section class="panel">
+      <h2><span class="nomor">1</span>Input - Bahasa Kita</h2>
+      <div class="isi">
+        <textarea id="input" placeholder="Tulis di sini, misalnya: Halo dunia">Halo dunia</textarea>
+        <div class="baris-tombol">
+          <button class="tombol gelap" id="btn-contoh1">Contoh: teks jadi biner</button>
+          <button class="tombol gelap" id="btn-contoh2">Contoh: biner jadi teks</button>
+          <button class="tombol gelap" id="btn-bersih">Bersihkan</button>
+        </div>
+        <p class="stat">Masukan: <b id="stat-in">0 karakter</b> - <b id="stat-byte">0 byte</b></p>
+      </div>
+    </section>
+
+    <section class="panel">
+      <h2><span class="nomor">2</span>Recipe - Susunan Operasi</h2>
+      <div class="isi">
+        <div id="recipe" class="kosong">Belum ada operasi. Klik salah satu operasi di kolom kiri untuk menambahkannya.</div>
+        <div class="baris-tombol">
+          <button class="tombol gelap" id="btn-hapus-recipe">Hapus semua operasi</button>
+        </div>
+      </div>
+    </section>
+
+    <section class="panel">
+      <h2><span class="nomor">3</span>Output - Bahasa Mesin</h2>
+      <div class="isi">
+        <textarea id="output" readonly placeholder="Hasilnya muncul di sini..."></textarea>
+        <div class="baris-tombol">
+          <button class="tombol" id="btn-sal">Salin hasil</button>
+          <button class="tombol gelap" id="btn-unduh">Unduh hasil (.txt)</button>
+        </div>
+        <p class="stat" id="stat-out">Keluaran: 0 karakter</p>
+      </div>
+    </section>
+
+    <section class="panel">
+      <h2><span class="nomor">4</span>Tabel ASCII - Per Huruf</h2>
+      <div class="isi">
+        <p class="penjelasan">Setiap huruf punya nomor. Inilah yang dimaksud bilangan ASCII:
+        huruf <b>A</b> = desimal <b>65</b> = biner <b>01000001</b> = heksa <b>41</b>.
+        Tabel ini membaca teks di Input, huruf per huruf, jadi bisa dicocokkan dengan
+        tabel ASCII di Google. Huruf di luar ASCII standar (misalnya é) ditandai merah
+        dan ditampilkan nomor Unicode-nya.</p>
+        <div style="overflow-x:auto;margin-top:12px">
+          <table>
+            <thead><tr><th>#</th><th>Huruf</th><th>Desimal</th><th>Biner (8 bit)</th><th>Heksa</th><th>Keterangan</th></tr></thead>
+            <tbody id="tabel-ascii"></tbody>
+          </table>
+        </div>
+        <p class="catatan" id="catatan-tabel"></p>
+      </div>
+    </section>
+  </main>
+</div>
+
+<footer>Mesin Bahasa - Tugas Individu - Ahmad Muqarrobin (Robin), 3TI01, NIM 242502040003 - Operasi berjalan sepenuhnya di browser.</footer>
+
+<script>
+(function(){
+  "use strict";
+  var enc = new TextEncoder(), dec = new TextDecoder("utf-8", {fatal:true});
+  function keByte(teks){ return Array.prototype.slice.call(enc.encode(teks)); }
+  function dariByte(arr){ return dec.decode(new Uint8Array(arr)); }
+  function pecahBiner(teks){
+    var bersih = teks.replace(/\s+/g, "");
+    if(!/^[01]+$/.test(bersih)) throw new Error("Biner hanya boleh berisi angka 0 dan 1.");
+    if(bersih.length % 8 !== 0) throw new Error("Panjang biner harus kelipatan 8 bit (ada " + bersih.length + " bit).");
+    var out = [];
+    for(var i = 0; i < bersih.length; i += 8) out.push(parseInt(bersih.slice(i, i + 8), 2));
+    return out;
+  }
+  function pecahAngka(teks, dasar, nama){
+    var potong = teks.trim().split(/[\s,;]+/).filter(function(x){ return x.length; });
+    if(!potong.length) throw new Error("Tidak ada angka " + nama + " yang bisa dibaca.");
+    return potong.map(function(x){
+      var n = parseInt(x, dasar);
+      if(isNaN(n) || n < 0 || n > 255) throw new Error("Nilai " + nama + " tidak sah: " + x + " (harus 0-255).");
+      return n;
+    });
+  }
+  function keBase64(teks){
+    var b = keByte(teks), bin = "";
+    for(var i = 0; i < b.length; i++) bin += String.fromCharCode(b[i]);
+    return btoa(bin);
+  }
+  function dariBase64(teks){
+    var bersih = teks.replace(/\s+/g, "");
+    var bin = atob(bersih), out = [];
+    for(var i = 0; i < bin.length; i++) out.push(bin.charCodeAt(i));
+    return dariByte(out);
+  }
+
+  var OPS = [
+    {kelompok:"Bahasa kita jadi bahasa mesin"},
+    {id:"biner",   nama:"Ke Biner",          ket:"tiap byte jadi 8 bit 0/1",
+      fn:function(s){ return keByte(s).map(function(b){ return b.toString(2).padStart(8, "0"); }).join(" "); }},
+    {id:"desimal", nama:"Ke Desimal ASCII",  ket:"tiap huruf jadi nomornya",
+      fn:function(s){ return keByte(s).join(" "); }},
+    {id:"heksa",   nama:"Ke Heksadesimal",   ket:"tiap byte jadi 2 digit heksa",
+      fn:function(s){ return keByte(s).map(function(b){ return b.toString(16).toUpperCase().padStart(2, "0"); }).join(" "); }},
+    {id:"oktal",   nama:"Ke Oktal",          ket:"tiap byte jadi 3 digit oktal",
+      fn:function(s){ return keByte(s).map(function(b){ return b.toString(8).padStart(3, "0"); }).join(" "); }},
+    {id:"base64",  nama:"Ke Base64",         ket:"sandi teks ala pengiriman data",
+      fn:keBase64},
+    {kelompok:"Bahasa mesin kembali jadi bahasa kita"},
+    {id:"dari-biner",   nama:"Dari Biner",          ket:"8 bit 0/1 jadi huruf lagi",
+      fn:function(s){ return dariByte(pecahBiner(s)); }},
+    {id:"dari-desimal", nama:"Dari Desimal ASCII",  ket:"angka dipisah spasi jadi huruf",
+      fn:function(s){ return dariByte(pecahAngka(s, 10, "desimal")); }},
+    {id:"dari-heksa",   nama:"Dari Heksadesimal",   ket:"heksa dipisah spasi jadi huruf",
+      fn:function(s){ return dariByte(pecahAngka(s, 16, "heksa")); }},
+    {id:"dari-base64",  nama:"Dari Base64",         ket:"balik dari sandi Base64",
+      fn:dariBase64},
+    {kelompok:"Olah teks"},
+    {id:"balik", nama:"Balik Teks",   ket:"urutan huruf dibalik",
+      fn:function(s){ return Array.from(s).reverse().join(""); }},
+    {id:"besar", nama:"Huruf Besar",  ket:"semua jadi kapital",
+      fn:function(s){ return s.toUpperCase(); }},
+    {id:"kecil", nama:"Huruf Kecil",  ket:"semua jadi huruf kecil",
+      fn:function(s){ return s.toLowerCase(); }},
+  ];
+  var OP_MAP = {};
+  OPS.forEach(function(o){ if(o.id) OP_MAP[o.id] = o; });
+
+  var inputEl = document.getElementById("input");
+  var outputEl = document.getElementById("output");
+  var recipeEl = document.getElementById("recipe");
+  var tabelEl = document.getElementById("tabel-ascii");
+  var recipe = ["biner"];
+
+  var daftarEl = document.getElementById("daftar-op");
+  OPS.forEach(function(o){
+    if(o.kelompok){
+      var k = document.createElement("div");
+      k.className = "op kelompok"; k.textContent = o.kelompok;
+      daftarEl.appendChild(k); return;
+    }
+    var b = document.createElement("button");
+    b.className = "op"; b.type = "button";
+    b.innerHTML = o.nama + "<small>" + o.ket + "</small>";
+    b.addEventListener("click", function(){ recipe.push(o.id); gambarRecipe(); jalan(); });
+    daftarEl.appendChild(b);
+  });
+
+  function gambarRecipe(){
+    recipeEl.innerHTML = "";
+    if(!recipe.length){
+      recipeEl.className = "kosong";
+      recipeEl.textContent = "Belum ada operasi. Klik salah satu operasi di kolom kiri untuk menambahkannya.";
+      return;
+    }
+    recipeEl.className = "";
+    recipe.forEach(function(id, i){
+      if(i > 0){
+        var p = document.createElement("span");
+        p.className = "panah"; p.textContent = "v"; p.title = "lalu";
+        p.style.display = "block"; p.style.textAlign = "center";
+        recipeEl.appendChild(p);
+      }
+      var d = document.createElement("div");
+      d.className = "langkah";
+      var no = document.createElement("span"); no.className = "no"; no.textContent = i + 1;
+      var nm = document.createElement("span"); nm.className = "nama"; nm.textContent = OP_MAP[id].nama;
+      var naik = document.createElement("button"); naik.type = "button"; naik.textContent = "naik";
+      naik.disabled = i === 0;
+      naik.addEventListener("click", function(){ var t = recipe[i-1]; recipe[i-1] = recipe[i]; recipe[i] = t; gambarRecipe(); jalan(); });
+      var turun = document.createElement("button"); turun.type = "button"; turun.textContent = "turun";
+      turun.disabled = i === recipe.length - 1;
+      turun.addEventListener("click", function(){ var t = recipe[i+1]; recipe[i+1] = recipe[i]; recipe[i] = t; gambarRecipe(); jalan(); });
+      var hapus = document.createElement("button"); hapus.type = "button"; hapus.textContent = "x";
+      hapus.addEventListener("click", function(){ recipe.splice(i, 1); gambarRecipe(); jalan(); });
+      d.appendChild(no); d.appendChild(nm); d.appendChild(naik); d.appendChild(turun); d.appendChild(hapus);
+      recipeEl.appendChild(d);
+    });
+  }
+
+  function jalan(){
+    var teks = inputEl.value;
+    var hasil = teks, salah = "";
+    try{
+      recipe.forEach(function(id){ hasil = OP_MAP[id].fn(hasil); });
+    }catch(e){ salah = e.message || String(e); }
+    if(salah){
+      outputEl.classList.add("error");
+      outputEl.value = "Tidak bisa diproses: " + salah;
+    }else{
+      outputEl.classList.remove("error");
+      outputEl.value = hasil;
+    }
+    document.getElementById("stat-in").textContent = teks.length + " karakter";
+    document.getElementById("stat-byte").textContent = keByte(teks).length + " byte";
+    document.getElementById("stat-out").textContent = "Keluaran: " + (salah ? 0 : hasil.length) + " karakter";
+    gambarTabel(teks);
+  }
+
+  function tampilHuruf(ch){
+    if(ch === " ") return "spasi";
+    if(ch === "\n") return "baris baru";
+    if(ch === "\t") return "tab";
+    return ch;
+  }
+  function gambarTabel(teks){
+    var maks = 200, daftar = Array.from(teks).slice(0, maks), html = "";
+    daftar.forEach(function(ch, i){
+      var kode = ch.codePointAt(0);
+      var ascii = kode < 128;
+      html += "<tr><td>" + (i + 1) + "</td><td class=\"karakter\">" +
+        tampilHuruf(ch).replace(/</g, "&lt;") + "</td><td>" + kode + "</td><td>" +
+        (ascii ? kode.toString(2).padStart(8, "0") : kode.toString(2)) + "</td><td>" +
+        kode.toString(16).toUpperCase() + "</td><td" + (ascii ? "" : " class=\"luar\"") + ">" +
+        (ascii ? "ASCII standar" : "di luar ASCII, nomor Unicode") + "</td></tr>";
+    });
+    tabelEl.innerHTML = html || "<tr><td colspan=\"6\">Input masih kosong.</td></tr>";
+    document.getElementById("catatan-tabel").textContent =
+      teks.length > maks ? "Tabel menampilkan " + maks + " huruf pertama dari " + teks.length + " huruf." : "";
+  }
+
+  inputEl.addEventListener("input", jalan);
+  document.getElementById("btn-hapus-recipe").addEventListener("click", function(){ recipe = []; gambarRecipe(); jalan(); });
+  document.getElementById("btn-bersih").addEventListener("click", function(){ inputEl.value = ""; jalan(); inputEl.focus(); });
+  document.getElementById("btn-contoh1").addEventListener("click", function(){
+    inputEl.value = "Halo dunia"; recipe = ["biner"]; gambarRecipe(); jalan();
+  });
+  document.getElementById("btn-contoh2").addEventListener("click", function(){
+    inputEl.value = "01001000 01100001 01101100 01101111"; recipe = ["dari-biner"]; gambarRecipe(); jalan();
+  });
+  document.getElementById("btn-sal").addEventListener("click", function(){
+    outputEl.select();
+    try{ document.execCommand("copy"); }catch(e){}
+    if(navigator.clipboard) navigator.clipboard.writeText(outputEl.value);
+  });
+  document.getElementById("btn-unduh").addEventListener("click", function(){
+    var a = document.createElement("a");
+    a.href = URL.createObjectURL(new Blob([outputEl.value], {type:"text/plain"}));
+    a.download = "hasil-bahasa-mesin.txt"; a.click();
+  });
+
+  gambarRecipe(); jalan();
+})();
+</script>
+</body>
+</html>
